@@ -1,4 +1,4 @@
-# Don't Remove Credit @VJ_Bots
+# Don't Remove Credit @VJ_Botz
 # Subscribe YouTube Channel For Amazing Bot @Tech_VJ
 # Ask Doubt on telegram @KingVJ01
 
@@ -10,7 +10,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQ
 from pyrogram import Client, filters, enums
 from pyrogram.errors import FloodWait, UserIsBlocked, MessageNotModified, PeerIdInvalid
 from pyrogram.errors.exceptions.bad_request_400 import MediaEmpty, PhotoInvalidDimensions, WebpageMediaEmpty
-from utils import get_size, is_subscribed, pub_is_subscribed, get_poster, search_gagala, temp, get_settings, save_group_settings, get_shortlink, get_tutorial, send_all, get_cap
+from utils import get_size, is_subscribed, pub_is_subscribed, get_poster, clean_query, search_gagala, temp, get_settings, save_group_settings, get_shortlink, get_tutorial, send_all, get_cap, send_file, get_file_info, correct_spelling_with_gemini
 from database.users_chats_db import db
 from database.ia_filterdb import col, sec_col, db as vjdb, sec_db, get_file_details, get_search_results, get_bad_files
 from database.filters_mdb import del_all, find_filter, get_filters
@@ -30,6 +30,7 @@ BUTTONS0 = {}
 BUTTONS1 = {}
 BUTTONS2 = {}
 SPELL_CHECK = {}
+NOTIFIED_REQUESTS = set()  # Tracks already-notified (user_id, movie_name) pairs
 
 @Client.on_message(filters.group & filters.text & filters.incoming)
 async def give_filter(client, message):
@@ -72,7 +73,7 @@ async def give_filter(client, message):
         else:
             return await message.reply_text(f"<b>Hᴇʏ {message.from_user.mention}, {str(total_results)} ʀᴇsᴜʟᴛs ᴀʀᴇ ғᴏᴜɴᴅ ɪɴ ᴍʏ ᴅᴀᴛᴀʙᴀsᴇ ғᴏʀ ʏᴏᴜʀ ᴏ̨ᴜᴇʀʏ {search}. \n\nTʜɪs ɪs ᴀ sᴜᴘᴘᴏʀᴛ ɢʀᴏᴜᴘ sᴏ ᴛʜᴀᴛ ʏᴏᴜ ᴄᴀɴ'ᴛ ɢᴇᴛ ғɪʟᴇs ғʀᴏᴍ ʜᴇʀᴇ...\n\nJᴏɪɴ ᴀɴᴅ Sᴇᴀʀᴄʜ Hᴇʀᴇ - {GRP_LNK}</b>")
 
-@Client.on_message(filters.private & filters.text & filters.incoming)
+@Client.on_message(filters.private & filters.text & filters.incoming & ~filters.regex(r"^[\/\#]"))  
 async def pm_text(bot, message):
     content = message.text
     user = message.from_user.first_name
@@ -133,7 +134,7 @@ async def next_page(bot, query):
             InlineKeyboardButton("ʏᴇᴀʀs", callback_data=f"years#{key}")
         ])
     else:
-        btn = []
+        btn =  []
         btn.insert(0, 
             [
                 InlineKeyboardButton('ǫᴜᴀʟɪᴛʏ', callback_data=f"qualities#{key}"),
@@ -257,7 +258,17 @@ async def advantage_spoll_choker(bot, query):
                 reqstr1 = query.from_user.id if query.from_user else 0
                 reqstr = await bot.get_users(reqstr1)
                 if NO_RESULTS_MSG:
-                    await bot.send_message(chat_id=LOG_CHANNEL, text=(script.NORSLTS.format(reqstr.id, reqstr.mention, movie)))
+                    notify_btn = InlineKeyboardMarkup([
+                        [InlineKeyboardButton(
+                            "📨 Notify User",
+                            callback_data=f"notify_user#{reqstr.id}#{movie.replace(' ', '_')}"
+                        )]
+                    ])
+                    await bot.send_message(
+                        chat_id=LOG_CHANNEL,
+                        text=script.NORSLTS.format(reqstr.id, reqstr.mention, movie),
+                        reply_markup=notify_btn
+                    )
                 k = await query.message.edit(script.MVE_NT_FND)
                 await asyncio.sleep(10)
                 await k.delete()
@@ -280,9 +291,9 @@ async def years_cb_handler(client: Client, query: CallbackQuery):
         search = search.replace(' ', '_')
     except:
         pass
-    btn = []
-    for i in range(0, len(YEARS)-1, 4):
-        row = []
+    btn =  []
+    for i in range(0, len(YEARS), 4):
+        row =  []
         for j in range(4):
             if i+j < len(YEARS):
                 row.append(
@@ -316,16 +327,11 @@ async def years_cb_handler(client: Client, query: CallbackQuery):
 async def filter_yearss_cb_handler(client: Client, query: CallbackQuery):
     _, lang, key = query.data.split("#")
     curr_time = datetime.now(pytz.timezone('Asia/Kolkata')).time()
-    search = FRESH.get(key)
-    try:
-        search = search.replace(' ', '_')
-    except:
-        pass
-    baal = lang in search
-    if baal:
-        search = search.replace(lang, "")
-    else:
-        search = search
+    search = BUTTONS.get(key, FRESH.get(key))
+    for y in YEARS:
+        if y in search:
+            search = search.replace(y, "")
+    search = re.sub(r"\s+", " ", search).strip()
     req = query.from_user.id
     chat_id = query.message.chat.id
     message = query.message
@@ -370,7 +376,7 @@ async def filter_yearss_cb_handler(client: Client, query: CallbackQuery):
             InlineKeyboardButton("ʏᴇᴀʀs", callback_data=f"years#{key}")
         ])
     else:
-        btn = []
+        btn =  []
         btn.insert(0, 
             [
                 InlineKeyboardButton(f'ǫᴜᴀʟɪᴛʏ', callback_data=f"qualities#{key}"),
@@ -446,9 +452,9 @@ async def episodes_cb_handler(client: Client, query: CallbackQuery):
         search = search.replace(' ', '_')
     except:
         pass
-    btn = []
-    for i in range(0, len(EPISODES)-1, 4):
-        row = []
+    btn =  []
+    for i in range(0, len(EPISODES), 4):
+        row =  []
         for j in range(4):
             if i+j < len(EPISODES):
                 row.append(
@@ -482,16 +488,11 @@ async def episodes_cb_handler(client: Client, query: CallbackQuery):
 async def filter_episodes_cb_handler(client: Client, query: CallbackQuery):
     _, lang, key = query.data.split("#")
     curr_time = datetime.now(pytz.timezone('Asia/Kolkata')).time()
-    search = FRESH.get(key)
-    try:
-        search = search.replace(' ', '_')
-    except:
-        pass
-    baal = lang in search
-    if baal:
-        search = search.replace(lang, "")
-    else:
-        search = search
+    search = BUTTONS.get(key, FRESH.get(key))
+    for e in EPISODES:
+        if e in search:
+            search = search.replace(e, "")
+    search = re.sub(r"\\s+", " ", search).strip()
     req = query.from_user.id
     chat_id = query.message.chat.id
     message = query.message
@@ -507,7 +508,27 @@ async def filter_episodes_cb_handler(client: Client, query: CallbackQuery):
         search = f"{search} {lang}" 
     BUTTONS[key] = search
 
-    files, offset, total_results = await get_search_results(chat_id, search, offset=0, filter=True)
+    # Episode mapping for better accuracy
+    files =  []
+    search_variants = [search]
+    if lang != "homepage":
+        e_num = lang.replace("E", "")
+        try:
+            e_num_int = int(e_num)
+            search_variants.append(search.replace(lang, f"episode {e_num}"))
+            search_variants.append(search.replace(lang, f"episode {e_num_int}"))
+            search_variants.append(search.replace(lang, f"ep {e_num}"))
+            search_variants.append(search.replace(lang, f"ep {e_num_int}"))
+        except: pass
+
+    for sv in list(set(search_variants)):
+        res, _, _ = await get_search_results(chat_id, sv, max_results=10)
+        for f in res:
+            if f not in files:
+                files.append(f)
+    
+    total_results = len(files)
+    offset = "" # Reset offset for combined results
     if not files:
         await query.answer("🚫 𝗡𝗼 𝗙𝗶𝗹𝗲 𝗪𝗲𝗿𝗲 𝗙𝗼𝘂𝗻𝗱 🚫", show_alert=1)
         return
@@ -536,7 +557,7 @@ async def filter_episodes_cb_handler(client: Client, query: CallbackQuery):
             InlineKeyboardButton("ʏᴇᴀʀs", callback_data=f"years#{key}")
         ])
     else:
-        btn = []
+        btn =  []
         btn.insert(0, 
             [
                 InlineKeyboardButton(f'ǫᴜᴀʟɪᴛʏ', callback_data=f"qualities#{key}"),
@@ -614,8 +635,8 @@ async def languages_cb_handler(client: Client, query: CallbackQuery):
         search = search.replace(' ', '_')
     except:
         pass
-    btn = []
-    for i in range(0, len(LANGUAGES)-1, 2):
+    btn =  []
+    for i in range(0, len(LANGUAGES), 2):
         btn.append([
             InlineKeyboardButton(
                 text=LANGUAGES[i].title(),
@@ -650,16 +671,11 @@ async def languages_cb_handler(client: Client, query: CallbackQuery):
 async def filter_languages_cb_handler(client: Client, query: CallbackQuery):
     _, lang, key = query.data.split("#")
     curr_time = datetime.now(pytz.timezone('Asia/Kolkata')).time()
-    search = FRESH.get(key)
-    try:
-        search = search.replace(' ', '_')
-    except:
-        pass
-    baal = lang in search
-    if baal:
-        search = search.replace(lang, "")
-    else:
-        search = search
+    search = BUTTONS.get(key, FRESH.get(key))
+    for l in LANGUAGES:
+        if l in search:
+            search = search.replace(l, "")
+    search = re.sub(r"\s+", " ", search).strip()
     req = query.from_user.id
     chat_id = query.message.chat.id
     message = query.message
@@ -704,7 +720,7 @@ async def filter_languages_cb_handler(client: Client, query: CallbackQuery):
             InlineKeyboardButton("ʏᴇᴀʀs", callback_data=f"years#{key}")
         ])
     else:
-        btn = []
+        btn =  []
         btn.insert(0, 
             [
                 InlineKeyboardButton(f'ǫᴜᴀʟɪᴛʏ', callback_data=f"qualities#{key}"),
@@ -782,8 +798,8 @@ async def seasons_cb_handler(client: Client, query: CallbackQuery):
         search = search.replace(' ', '_')
     except:
         pass
-    btn = []
-    for i in range(0, len(SEASONS)-1, 2):
+    btn =  []
+    for i in range(0, len(SEASONS), 2):
         btn.append([
             InlineKeyboardButton(
                 text=SEASONS[i].title(),
@@ -818,45 +834,27 @@ async def seasons_cb_handler(client: Client, query: CallbackQuery):
 async def filter_seasons_cb_handler(client: Client, query: CallbackQuery):
     _, seas, key = query.data.split("#")
     curr_time = datetime.now(pytz.timezone('Asia/Kolkata')).time()
-    search = FRESH.get(key)
-    try:
-        search = search.replace(' ', '_')
-    except:
-        pass
-    sea = ""
-    season_search = ["s01","s02", "s03", "s04", "s05", "s06", "s07", "s08", "s09", "s10", "season 01","season 02","season 03","season 04","season 05","season 06","season 07","season 08","season 09","season 10", "season 1","season 2","season 3","season 4","season 5","season 6","season 7","season 8","season 9"]
-    for x in range (len(season_search)):
-        if season_search[x] in search:
-            sea = season_search[x]
-            break
-    if sea:
-        search = search.replace(sea, "")
-    else:
-        search = search
-    
     req = query.from_user.id
     chat_id = query.message.chat.id
     message = query.message
-    try:
-        if int(req) not in [query.message.reply_to_message.from_user.id, 0]:
-            return await query.answer(
-                f"⚠️ ʜᴇʟʟᴏ{query.from_user.first_name},\nᴛʜɪꜱ ɪꜱ ɴᴏᴛ ʏᴏᴜʀ ᴍᴏᴠɪᴇ ʀᴇQᴜᴇꜱᴛ,\nʀᴇQᴜᴇꜱᴛ ʏᴏᴜʀ'ꜱ...",
-                show_alert=True,
-            )
-    except:
-        pass
-    
-    searchagn = search
-    search1 = search
-    search2 = search
-    search = f"{search} {seas}"
+    search = BUTTONS.get(key, FRESH.get(key))
+    season_search_all = ["s01","s02", "s03", "s04", "s05", "s06", "s07", "s08", "s09", "s10", "season 01","season 02","season 03","season 04","season 05","season 06","season 07","season 08","season 09","season 10", "season 1","season 2","season 3","season 4","season 5","season 6","season 7","season 8","season 9"]
+    for s in season_search_all:
+        if s in search.lower():
+            search = re.sub(rf"\b{s}\b", "", search, flags=re.IGNORECASE)
+    search = re.sub(r"\s+", " ", search).strip()
+
+    base_search = search
+    if seas != "homepage":
+        search = f"{search} {seas}"
+    BUTTONS[key] = search
     BUTTONS0[key] = search
     
     files, _, _ = await get_search_results(chat_id, search, max_results=10)
     files = [file for file in files if re.search(seas, file["file_name"], re.IGNORECASE)]
     
     seas1 = "s01" if seas == "season 1" else "s02" if seas == "season 2" else "s03" if seas == "season 3" else "s04" if seas == "season 4" else "s05" if seas == "season 5" else "s06" if seas == "season 6" else "s07" if seas == "season 7" else "s08" if seas == "season 8" else "s09" if seas == "season 9" else "s10" if seas == "season 10" else ""
-    search1 = f"{search1} {seas1}"
+    search1 = f"{base_search} {seas1}"
     BUTTONS1[key] = search1
     files1, _, _ = await get_search_results(chat_id, search1, max_results=10)
     files1 = [file for file in files1 if re.search(seas1, file["file_name"], re.IGNORECASE)]
@@ -865,7 +863,7 @@ async def filter_seasons_cb_handler(client: Client, query: CallbackQuery):
         files.extend(files1)
     
     seas2 = "season 01" if seas == "season 1" else "season 02" if seas == "season 2" else "season 03" if seas == "season 3" else "season 04" if seas == "season 4" else "season 05" if seas == "season 5" else "season 06" if seas == "season 6" else "season 07" if seas == "season 7" else "season 08" if seas == "season 8" else "season 09" if seas == "season 9" else "s010"
-    search2 = f"{search2} {seas2}"
+    search2 = f"{base_search} {seas2}"
     BUTTONS2[key] = search2
     files2, _, _ = await get_search_results(chat_id, search2, max_results=10)
     files2 = [file for file in files2 if re.search(seas2, file["file_name"], re.IGNORECASE)]
@@ -901,7 +899,7 @@ async def filter_seasons_cb_handler(client: Client, query: CallbackQuery):
             InlineKeyboardButton("ʏᴇᴀʀs", callback_data=f"years#{key}")
         ])
     else:
-        btn = []
+        btn =  []
         btn.insert(0, 
             [
                 InlineKeyboardButton(f'ǫᴜᴀʟɪᴛʏ', callback_data=f"qualities#{key}"),
@@ -952,8 +950,8 @@ async def qualities_cb_handler(client: Client, query: CallbackQuery):
         search = search.replace(' ', '_')
     except:
         pass
-    btn = []
-    for i in range(0, len(QUALITIES)-1, 2):
+    btn =  []
+    for i in range(0, len(QUALITIES), 2):
         btn.append([
             InlineKeyboardButton(
                 text=QUALITIES[i].title(),
@@ -983,29 +981,16 @@ async def qualities_cb_handler(client: Client, query: CallbackQuery):
 @Client.on_callback_query(filters.regex(r"^fl#"))
 async def filter_qualities_cb_handler(client: Client, query: CallbackQuery):
     _, qual, key = query.data.split("#")
-    search = FRESH.get(key)
-    try:
-        search = search.replace(' ', '_')
-    except:
-        pass
-    baal = qual in search
-    if baal:
-        search = search.replace(qual, "")
-    else:
-        search = search
     req = query.from_user.id
     chat_id = query.message.chat.id
     message = query.message
-    try:
-        if int(req) not in [query.message.reply_to_message.from_user.id, 0]:
-            return await query.answer(
-                f"⚠️ ʜᴇʟʟᴏ{query.from_user.first_name},\nᴛʜɪꜱ ɪꜱ ɴᴏᴛ ʏᴏᴜʀ ᴍᴏᴠɪᴇ ʀᴇQᴜᴇꜱᴛ,\nʀᴇQᴜᴇꜱᴛ ʏᴏᴜʀ'ꜱ...",
-                show_alert=False,
-            )
-    except:
-        pass
-    searchagain = search
-    if lang != "homepage":
+    search = BUTTONS.get(key, FRESH.get(key))
+    for q in QUALITIES:
+        if q in search:
+            search = search.replace(q, "")
+    search = re.sub(r"\s+", " ", search).strip()
+
+    if qual != "homepage":
         search = f"{search} {qual}" 
     BUTTONS[key] = search
 
@@ -1039,7 +1024,7 @@ async def filter_qualities_cb_handler(client: Client, query: CallbackQuery):
             InlineKeyboardButton("ʏᴇᴀʀs", callback_data=f"years#{key}")
         ])
     else:
-        btn = []
+        btn =  []
         btn.insert(0, 
             [
                 InlineKeyboardButton(f'ǫᴜᴀʟɪᴛʏ', callback_data=f"qualities#{key}"),
@@ -1094,6 +1079,78 @@ async def filter_qualities_cb_handler(client: Client, query: CallbackQuery):
         except MessageNotModified:
             pass
                 
+@Client.on_callback_query(filters.regex(r"^notify_user#"))
+async def notify_user_cb(client, query):
+    """
+    Handles admin clicking 'Notify User' on a #NoResults log message.
+    Sends the requesting user a private message with a 'Check Movie' deep-link button.
+    Updates the admin button to 'User Notified' on success, or alerts on failure.
+    """
+    logger.info("Button click received for notify_user")
+    
+    # Only allow bot admins to use this button
+    if query.from_user.id not in ADMINS:
+        return await query.answer("⚠️ Only admins can use this button.", show_alert=True)
+
+    try:
+        _, user_id_str, movie_slug = query.data.split("#", 2)
+        user_id = int(user_id_str)
+        movie_name = movie_slug.replace("_", " ")
+        movie_url_slug = movie_slug  # already has underscores
+        logger.info(f"Parsed user_id: {user_id}")
+        logger.info(f"Parsed movie_name: {movie_name}")
+    except (ValueError, IndexError) as e:
+        logger.error(f"Failed to parse callback data: {e}")
+        return await query.answer("⚠️ Invalid button data.", show_alert=True)
+
+    # Idempotency: prevent sending the same notification twice
+    notify_key = (user_id, movie_slug)
+    if notify_key in NOTIFIED_REQUESTS:
+        return await query.answer("✅ User has already been notified.", show_alert=True)
+
+    # Format the movie name: lowercase, strip, replace spaces with underscores
+    formatted_movie_name = movie_name.strip().lower().replace(' ', '_')
+
+    # Build the deep-link URL for the user's Check Movie button
+    check_movie_url = f"https://telegram.me/greenmoviebot?start=search_{formatted_movie_name}"
+    user_btn = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🎬 Check Movie", url=check_movie_url)]
+    ])
+
+    notification_text = (
+        f"Dear User,\n\n"
+        f"The movie you requested has been added to our database. Check it out!"
+    )
+
+    try:
+        await client.send_message(
+            chat_id=user_id,
+            text=notification_text,
+            reply_markup=user_btn
+        )
+        logger.info(f"Message sent successfully to user {user_id} for movie {movie_name}")
+    except Exception as e:
+        logger.error(f"Any exception raised: Failed to notify user {user_id}: {e}", exc_info=True)
+        return await query.answer("Failed to notify user.", show_alert=True)
+
+    # Mark as notified and update the admin button
+    NOTIFIED_REQUESTS.add(notify_key)
+    notified_btn = InlineKeyboardMarkup([
+        [InlineKeyboardButton("✅ User Notified", callback_data="notify_done")]
+    ])
+    try:
+        await query.message.edit_reply_markup(reply_markup=notified_btn)
+    except MessageNotModified:
+        pass
+    await query.answer("User notified successfully.", show_alert=True)
+
+
+@Client.on_callback_query(filters.regex(r"^notify_done$"))
+async def notify_done_cb(client, query):
+    """Handles clicks on the already-notified button — just shows an info alert."""
+    await query.answer("✅ This user has already been notified.", show_alert=True)
+
+
 @Client.on_callback_query()
 async def cb_handler(client: Client, query: CallbackQuery):
     if query.data == "close_data":
@@ -1290,7 +1347,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
                 "Tʜᴇʀᴇ ᴀʀᴇ ɴᴏ ᴀᴄᴛɪᴠᴇ ᴄᴏɴɴᴇᴄᴛɪᴏɴs!! Cᴏɴɴᴇᴄᴛ ᴛᴏ sᴏᴍᴇ ɢʀᴏᴜᴘs ғɪʀsᴛ.",
             )
             return await query.answer(MSG_ALRT)
-        buttons = []
+        buttons =  []
         for groupid in groupids:
             try:
                 ttl = await client.get_chat(int(groupid))
@@ -1350,9 +1407,18 @@ async def cb_handler(client: Client, query: CallbackQuery):
         settings = await get_settings(query.message.chat.id)
         if CUSTOM_FILE_CAPTION:
             try:
-                f_caption = CUSTOM_FILE_CAPTION.format(file_name='' if title is None else title,
-                                                       file_size='' if size is None else size,
-                                                       file_caption='' if f_caption is None else f_caption)
+                file_info = get_file_info(title)
+                f_caption = CUSTOM_FILE_CAPTION.format(
+                    file_name='' if title is None else title,
+                    file_size='' if size is None else size,
+                    file_caption='' if f_caption is None else f_caption,
+                    quality=file_info['quality'],
+                    season=file_info['season'],
+                    episode=file_info['episode'],
+                    language=file_info['language'],
+                    year=file_info['year'],
+                    format=file_info['format']
+                )
             except Exception as e:
                 logger.exception(e)
             f_caption = f_caption
@@ -1444,9 +1510,18 @@ async def cb_handler(client: Client, query: CallbackQuery):
         settings = await get_settings(query.message.chat.id)
         if CUSTOM_FILE_CAPTION:
             try:
-                f_caption = CUSTOM_FILE_CAPTION.format(file_name='' if title is None else title,
-                                                       file_size='' if size is None else size,
-                                                       file_caption='' if f_caption is None else f_caption)
+                file_info = get_file_info(title)
+                f_caption = CUSTOM_FILE_CAPTION.format(
+                    file_name='' if title is None else title,
+                    file_size='' if size is None else size,
+                    file_caption='' if f_caption is None else f_caption,
+                    quality=file_info['quality'],
+                    season=file_info['season'],
+                    episode=file_info['episode'],
+                    language=file_info['language'],
+                    year=file_info['year'],
+                    format=file_info['format']
+                )
             except Exception as e:
                 logger.exception(e)
             f_caption = f_caption
@@ -1800,7 +1875,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
         _, file_id = query.data.split(":")
         try:
             log_msg = await client.send_cached_media(chat_id=LOG_CHANNEL, file_id=file_id)
-            fileName = {quote_plus(get_name(log_msg))}
+            fileName = quote_plus(get_name(log_msg))
             stream = f"{URL}watch/{str(log_msg.id)}/{quote_plus(get_name(log_msg))}?hash={get_hash(log_msg)}"
             download = f"{URL}{str(log_msg.id)}/{quote_plus(get_name(log_msg))}?hash={get_hash(log_msg)}"
             button = [[
@@ -1829,7 +1904,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
             buttons = [[
                 InlineKeyboardButton('⤬ ᴀᴅᴅ ᴍᴇ ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ ⤬', url=f'http://t.me/{temp.U_NAME}?startgroup=true')
             ],[
-                InlineKeyboardButton('ᴇᴀʀɴ ᴍᴏɴᴇʏ', callback_data="shortlink_info"),
+                
                 InlineKeyboardButton('ᴍᴏᴠɪᴇ ɢʀᴏᴜᴘ', url=GRP_LNK)
             ],[
                 InlineKeyboardButton('ʜᴇʟᴘ', callback_data='help'),
@@ -1843,7 +1918,7 @@ async def cb_handler(client: Client, query: CallbackQuery):
             buttons = [[
                 InlineKeyboardButton('⤬ ᴀᴅᴅ ᴍᴇ ᴛᴏ ʏᴏᴜʀ ɢʀᴏᴜᴘ ⤬', url=f'http://t.me/{temp.U_NAME}?startgroup=true')
             ],[
-                InlineKeyboardButton('ᴇᴀʀɴ ᴍᴏɴᴇʏ', callback_data="shortlink_info"),
+                
                 InlineKeyboardButton('ᴍᴏᴠɪᴇ ɢʀᴏᴜᴘ', url=GRP_LNK)
             ],[
                 InlineKeyboardButton('ʜᴇʟᴘ', callback_data='help'),
@@ -1956,9 +2031,6 @@ async def cb_handler(client: Client, query: CallbackQuery):
         )
     elif query.data == "about":
         buttons = [[
-            InlineKeyboardButton('Sᴜᴘᴘᴏʀᴛ Gʀᴏᴜᴘ', url=GRP_LNK),
-            InlineKeyboardButton('Sᴏᴜʀᴄᴇ Cᴏᴅᴇ', url="https://github.com/VJBots/VJ-FILTER-BOT")
-        ],[
             InlineKeyboardButton('Hᴏᴍᴇ', callback_data='start'),
             InlineKeyboardButton('Cʟᴏsᴇ', callback_data='close_data')
         ]]
@@ -2552,220 +2624,279 @@ async def cb_handler(client: Client, query: CallbackQuery):
             await query.message.edit_reply_markup(reply_markup)
     await query.answer(MSG_ALRT)
 
-async def auto_filter(client, name, msg, reply_msg, ai_search, spoll=False):
-    curr_time = datetime.now(pytz.timezone('Asia/Kolkata')).time()
-    if not spoll:
-        message = msg
-        if message.text.startswith("/"): return  # ignore commands
-        if re.findall("((^\/|^,|^!|^\.|^[\U0001F600-\U000E007F]).*)", message.text):
-            return
-        if len(message.text) < 100:
-            search = name
-            search = search.lower()
-            find = search.split(" ")
-            search = ""
-            removes = ["in","upload", "series", "full", "horror", "thriller", "mystery", "print", "file"]
-            for x in find:
-                if x in removes:
-                    continue
-                else:
-                    search = search + x + " "
-            search = re.sub(r"\b(pl(i|e)*?(s|z+|ease|se|ese|(e+)s(e)?)|((send|snd|giv(e)?|gib)(\sme)?)|movie(s)?|new|latest|bro|bruh|broh|helo|that|find|dubbed|link|venum|iruka|pannunga|pannungga|anuppunga|anupunga|anuppungga|anupungga|film|undo|kitti|kitty|tharu|kittumo|kittum|movie|any(one)|with\ssubtitle(s)?)", "", search, flags=re.IGNORECASE)
-            search = re.sub(r"\s+", " ", search).strip()
-            search = search.replace("-", " ")
-            search = search.replace(":", "")
-            search = search.replace(".", "")
-            files, offset, total_results = await get_search_results(message.chat.id ,search, offset=0, filter=True)
-            settings = await get_settings(message.chat.id)
-            if not files:
-                if settings["spell_check"]:
-                    return await advantage_spell_chok(client, name, msg, reply_msg, ai_search)
-                else:
-                    return await reply_msg.edit_text(f"**⚠️ No File Found For Your Query - {name}**\n**Make Sure Spelling Is Correct.**")
+async def auto_filter(client, name, msg, reply_msg, ai_search, spoll=False, exclude_file_id=None):
+    try:
+        curr_time = datetime.now(pytz.timezone('Asia/Kolkata')).time()
+        if not spoll:
+            message = msg
+            if message.text.startswith("/"): return  # ignore commands
+            if re.findall("((^\/|^,|^!|^\.|^[\U0001F600-\U000E007F]).*)", message.text):
+                return
+            if len(message.text) < 100:
+                search = name.lower()
+                search_title, search_year = clean_query(search)
+                
+                # Construct a better search string for the database
+                db_search = search_title
+                if search_year:
+                    db_search = f"{search_title} {search_year}"
+                
+                print(f"Searching for: {db_search}")
+                try:
+                    files, offset, total_results = await asyncio.wait_for(get_search_results(message.chat.id, db_search, offset=0, filter=True), timeout=15)
+                    
+                    if exclude_file_id and exclude_file_id != "None":
+                        original_len = len(files)
+                        files = [f for f in files if f.get("file_id") != exclude_file_id]
+                        if len(files) < original_len:
+                            total_results = max(0, total_results - 1)
+                except asyncio.TimeoutError:
+                    return await reply_msg.edit_text("<b>❌ Search timed out. Your database might be slow.</b>")
+                
+                print(f"Results found: {len(files)}")
+                try:
+                    settings = await asyncio.wait_for(get_settings(message.chat.id), timeout=10)
+                except asyncio.TimeoutError:
+                    print("Settings fetch timed out.")
+                    return await reply_msg.edit_text("<b>❌ Settings fetch timed out. Database might be overloaded.</b>")
+                
+                if not files:
+                    # Try TMDB normalization if still nothing
+                    tmdb_res = await get_poster(name)
+                    if tmdb_res and tmdb_res.get('title'):
+                        normalized_search = tmdb_res.get('title')
+                        if normalized_search.lower() != search.lower():
+                            files, offset, total_results = await get_search_results(message.chat.id, normalized_search, offset=0, filter=True)
+                            if files:
+                                search = normalized_search
+                    
+                    if not files:
+                        if settings["spell_check"]:
+                            return await advantage_spell_chok(client, name, msg, reply_msg, ai_search)
+                        else:
+                            return await reply_msg.edit_text(f"**⚠️ No File Found For Your Query - {name}**\n**Make Sure Spelling Is Correct.**")
+            else:
+                return
         else:
-            return
-    else:
-        message = msg.message.reply_to_message  # msg will be callback query
-        search, files, offset, total_results = spoll
-        settings = await get_settings(message.chat.id)
-        await msg.message.delete()
-    pre = 'filep' if settings['file_secure'] else 'file'
-    key = f"{message.chat.id}-{message.id}"
-    req = message.from_user.id if message.from_user else 0
-    FRESH[key] = search
-    temp.GETALL[key] = files
-    temp.SHORT[message.from_user.id] = message.chat.id
-    if settings["button"]:
-        btn = [
-            [
-                InlineKeyboardButton(
-                    text=f"[{get_size(file['file_size'])}] {' '.join(filter(lambda x: not x.startswith('[') and not x.startswith('@') and not x.startswith('www.'), file['file_name'].split()))}", callback_data=f'{pre}#{file["file_id"]}'
-                ),
+            if isinstance(msg, CallbackQuery):
+                message = msg.message.reply_to_message  # msg will be callback query
+            else:
+                message = msg
+            search, files, offset, total_results = spoll
+            settings = await get_settings(message.chat.id)
+            if isinstance(msg, CallbackQuery):
+                await msg.message.delete()
+        pre = 'filep' if settings['file_secure'] else 'file'
+        key = f"{message.chat.id}-{message.id}"
+        req = message.from_user.id if message.from_user else 0
+        user_mention = message.from_user.mention if message.from_user else "Anonymous"
+        FRESH[key] = search
+        BUTTONS[key] = search
+        temp.GETALL[key] = files
+        temp.SHORT[message.from_user.id] = message.chat.id
+        if settings["button"]:
+            btn = [
+                [
+                    InlineKeyboardButton(
+                        text=f"[{get_size(file['file_size'])}] {' '.join(filter(lambda x: not x.startswith('[') and not x.startswith('@') and not x.startswith('www.'), file['file_name'].split()))}", callback_data=f'{pre}#{file["file_id"]}'
+                    ),
+                ]
+                for file in files
             ]
-            for file in files
-        ]
-        btn.insert(0, 
-            [
-                InlineKeyboardButton(f'ǫᴜᴀʟɪᴛʏ', callback_data=f"qualities#{key}"),
-                InlineKeyboardButton("ᴇᴘɪsᴏᴅᴇs", callback_data=f"episodes#{key}"),
-                InlineKeyboardButton("sᴇᴀsᴏɴs",  callback_data=f"seasons#{key}")
-            ]
-        )
-        btn.insert(0, [
-            InlineKeyboardButton("𝐒𝐞𝐧𝐝 𝐀𝐥𝐥", callback_data=f"sendfiles#{key}"),
-            InlineKeyboardButton("ʟᴀɴɢᴜᴀɢᴇs", callback_data=f"languages#{key}"),
-            InlineKeyboardButton("ʏᴇᴀʀs", callback_data=f"years#{key}")
-        ])
-    else:
-        btn = []
-        btn.insert(0, 
-            [
-                InlineKeyboardButton(f'ǫᴜᴀʟɪᴛʏ', callback_data=f"qualities#{key}"),
-                InlineKeyboardButton("ᴇᴘɪsᴏᴅᴇs", callback_data=f"episodes#{key}"),
-                InlineKeyboardButton("sᴇᴀsᴏɴs",  callback_data=f"seasons#{key}")
-            ]
-        )
-        btn.insert(0, [
-            InlineKeyboardButton("𝐒𝐞𝐧𝐝 𝐀𝐥𝐥", callback_data=f"sendfiles#{key}"),
-            InlineKeyboardButton("ʟᴀɴɢᴜᴀɢᴇs", callback_data=f"languages#{key}"),
-            InlineKeyboardButton("ʏᴇᴀʀs", callback_data=f"years#{key}")
-        ])
-    if offset != "":
-        try:
-            if settings['max_btn']:
+            btn.insert(0, 
+                [
+                    InlineKeyboardButton(f'ǫᴜᴀʟɪᴛʏ', callback_data=f"qualities#{key}"),
+                    InlineKeyboardButton("ᴇᴘɪsᴏᴅᴇs", callback_data=f"episodes#{key}"),
+                    InlineKeyboardButton("sᴇᴀsᴏɴs",  callback_data=f"seasons#{key}")
+                ]
+            )
+            btn.insert(0, [
+                InlineKeyboardButton("𝐒𝐞𝐧𝐝 𝐀𝐥𝐥", callback_data=f"sendfiles#{key}"),
+                InlineKeyboardButton("ʟᴀɴɢᴜᴀɢᴇs", callback_data=f"languages#{key}"),
+                InlineKeyboardButton("ʏᴇᴀʀs", callback_data=f"years#{key}")
+            ])
+        else:
+            btn =  []
+            btn.insert(0, 
+                [
+                    InlineKeyboardButton(f'ǫᴜᴀʟɪᴛʏ', callback_data=f"qualities#{key}"),
+                    InlineKeyboardButton("ᴇᴘɪsᴏᴅᴇs", callback_data=f"episodes#{key}"),
+                    InlineKeyboardButton("sᴇᴀsᴏɴs",  callback_data=f"seasons#{key}")
+                ]
+            )
+            btn.insert(0, [
+                InlineKeyboardButton("𝐒𝐞𝐧𝐝 𝐀𝐥𝐥", callback_data=f"sendfiles#{key}"),
+                InlineKeyboardButton("ʟᴀɴɢᴜᴀɢᴇs", callback_data=f"languages#{key}"),
+                InlineKeyboardButton("ʏᴇᴀʀs", callback_data=f"years#{key}")
+            ])
+        if offset != "":
+            try:
+                if settings['max_btn']:
+                    btn.append(
+                        [InlineKeyboardButton("𝐏𝐀𝐆𝐄", callback_data="pages"), InlineKeyboardButton(text=f"1/{math.ceil(int(total_results)/10)}",callback_data="pages"), InlineKeyboardButton(text="𝐍𝐄𝐗𝐓 ➪",callback_data=f"next_{req}_{key}_{offset}")]
+                    )
+                else:
+                    btn.append(
+                        [InlineKeyboardButton("𝐏𝐀𝐆𝐄", callback_data="pages"), InlineKeyboardButton(text=f"1/{math.ceil(int(total_results)/int(MAX_B_TN))}",callback_data="pages"), InlineKeyboardButton(text="𝐍𝐄𝐗𝐓 ➪",callback_data=f"next_{req}_{key}_{offset}")]
+                    )
+            except KeyError:
+                await save_group_settings(message.chat.id, 'max_btn', True)
                 btn.append(
                     [InlineKeyboardButton("𝐏𝐀𝐆𝐄", callback_data="pages"), InlineKeyboardButton(text=f"1/{math.ceil(int(total_results)/10)}",callback_data="pages"), InlineKeyboardButton(text="𝐍𝐄𝐗𝐓 ➪",callback_data=f"next_{req}_{key}_{offset}")]
                 )
-            else:
-                btn.append(
-                    [InlineKeyboardButton("𝐏𝐀𝐆𝐄", callback_data="pages"), InlineKeyboardButton(text=f"1/{math.ceil(int(total_results)/int(MAX_B_TN))}",callback_data="pages"), InlineKeyboardButton(text="𝐍𝐄𝐗𝐓 ➪",callback_data=f"next_{req}_{key}_{offset}")]
-                )
-        except KeyError:
-            await save_group_settings(message.chat.id, 'max_btn', True)
-            btn.append(
-                [InlineKeyboardButton("𝐏𝐀𝐆𝐄", callback_data="pages"), InlineKeyboardButton(text=f"1/{math.ceil(int(total_results)/10)}",callback_data="pages"), InlineKeyboardButton(text="𝐍𝐄𝐗𝐓 ➪",callback_data=f"next_{req}_{key}_{offset}")]
-            )
-    else:
-        btn.append(
-            [InlineKeyboardButton(text="𝐍𝐎 𝐌𝐎𝐑𝐄 𝐏𝐀𝐆𝐄𝐒 𝐀𝐕𝐀𝐈𝐋𝐀𝐁𝐋𝐄",callback_data="pages")]
-        )
-    imdb = await get_poster(search, file=(files[0])['file_name']) if settings["imdb"] else None
-    cur_time = datetime.now(pytz.timezone('Asia/Kolkata')).time()
-    time_difference = timedelta(hours=cur_time.hour, minutes=cur_time.minute, seconds=(cur_time.second+(cur_time.microsecond/1000000))) - timedelta(hours=curr_time.hour, minutes=curr_time.minute, seconds=(curr_time.second+(curr_time.microsecond/1000000)))
-    remaining_seconds = "{:.2f}".format(time_difference.total_seconds())
-    TEMPLATE = script.IMDB_TEMPLATE_TXT
-    if imdb:
-        cap = TEMPLATE.format(
-            qurey=search,
-            title=imdb['title'],
-            votes=imdb['votes'],
-            aka=imdb["aka"],
-            seasons=imdb["seasons"],
-            box_office=imdb['box_office'],
-            localized_title=imdb['localized_title'],
-            kind=imdb['kind'],
-            imdb_id=imdb["imdb_id"],
-            cast=imdb["cast"],
-            runtime=imdb["runtime"],
-            countries=imdb["countries"],
-            certificates=imdb["certificates"],
-            languages=imdb["languages"],
-            director=imdb["director"],
-            writer=imdb["writer"],
-            producer=imdb["producer"],
-            composer=imdb["composer"],
-            cinematographer=imdb["cinematographer"],
-            music_team=imdb["music_team"],
-            distributors=imdb["distributors"],
-            release_date=imdb['release_date'],
-            year=imdb['year'],
-            genres=imdb['genres'],
-            poster=imdb['poster'],
-            plot=imdb['plot'],
-            rating=imdb['rating'],
-            url=imdb['url'],
-            **locals()
-        )
-        temp.IMDB_CAP[message.from_user.id] = cap
-        if not settings["button"]:
-            cap+="<b>\n\n<u>🍿 Your Movie Files 👇</u></b>\n"
-            for file in files:
-                cap += f"<b>\n📁 <a href='https://telegram.me/{temp.U_NAME}?start=files_{file['file_id']}'>[{get_size(file['file_size'])}] {' '.join(filter(lambda x: not x.startswith('[') and not x.startswith('@') and not x.startswith('www.'), file['file_name'].split()))}\n</a></b>"
-    else:
-        if settings["button"]:
-            cap = f"<b>Tʜᴇ Rᴇꜱᴜʟᴛꜱ Fᴏʀ ☞ {search}\n\nRᴇǫᴜᴇsᴛᴇᴅ Bʏ ☞ {message.from_user.mention}\n\nʀᴇsᴜʟᴛ sʜᴏᴡ ɪɴ ☞ {remaining_seconds} sᴇᴄᴏɴᴅs\n\nᴘᴏᴡᴇʀᴇᴅ ʙʏ ☞ : {message.chat.title} \n\n⚠️ ᴀꜰᴛᴇʀ 5 ᴍɪɴᴜᴛᴇꜱ ᴛʜɪꜱ ᴍᴇꜱꜱᴀɢᴇ ᴡɪʟʟ ʙᴇ ᴀᴜᴛᴏᴍᴀᴛɪᴄᴀʟʟʏ ᴅᴇʟᴇᴛᴇᴅ 🗑️\n\n</b>"
         else:
-            cap = f"<b>Tʜᴇ Rᴇꜱᴜʟᴛꜱ Fᴏʀ ☞ {search}\n\nRᴇǫᴜᴇsᴛᴇᴅ Bʏ ☞ {message.from_user.mention}\n\nʀᴇsᴜʟᴛ sʜᴏᴡ ɪɴ ☞ {remaining_seconds} sᴇᴄᴏɴᴅs\n\nᴘᴏᴡᴇʀᴇᴅ ʙʏ ☞ : {message.chat.title} \n\n⚠️ ᴀꜰᴛᴇʀ 5 ᴍɪɴᴜᴛᴇꜱ ᴛʜɪꜱ ᴍᴇꜱꜱᴀɢᴇ ᴡɪʟʟ ʙᴇ ᴀᴜᴛᴏᴍᴀᴛɪᴄᴀʟʟʏ ᴅᴇʟᴇᴛᴇᴅ 🗑️\n\n</b>"
-            cap+="<b><u>🍿 Your Movie Files 👇</u></b>\n\n"
-            for file in files:
-                cap += f"<b>📁 <a href='https://telegram.me/{temp.U_NAME}?start=files_{file['file_id']}'>[{get_size(file['file_size'])}] {' '.join(filter(lambda x: not x.startswith('[') and not x.startswith('@') and not x.startswith('www.'), file['file_name'].split()))}\n\n</a></b>"
-
-    if imdb and imdb.get('poster'):
+            btn.append(
+                [InlineKeyboardButton(text="𝐍𝐎 𝐌𝐎𝐑𝐄 𝐏𝐀𝐆𝐄𝐒 𝐀𝐕𝐀𝐈𝐋𝐀𝐁𝐋𝐄",callback_data="pages")]
+            )
+        print("Fetching IMDb poster...")
         try:
-            hehe = await message.reply_photo(photo=imdb.get('poster'), caption=cap, reply_markup=InlineKeyboardMarkup(btn))
-            await reply_msg.delete()
+            imdb = await asyncio.wait_for(get_poster(search, file=(files[0])['file_name']), timeout=15) if settings["imdb"] else None
+        except asyncio.TimeoutError:
+            print("IMDb fetch timed out.")
+            imdb = None
+        print("Finalizing response...")
+        cur_time = datetime.now(pytz.timezone('Asia/Kolkata')).time()
+        time_difference = timedelta(hours=cur_time.hour, minutes=cur_time.minute, seconds=(cur_time.second+(cur_time.microsecond/1000000))) - timedelta(hours=curr_time.hour, minutes=curr_time.minute, seconds=(curr_time.second+(curr_time.microsecond/1000000)))
+        remaining_seconds = "{:.2f}".format(time_difference.total_seconds())
+        TEMPLATE = script.IMDB_TEMPLATE_TXT
+        if imdb:
+            cap = TEMPLATE.format(
+                qurey=search,
+                title=imdb['title'],
+                votes=imdb['votes'],
+                aka=imdb["aka"],
+                seasons=imdb["seasons"],
+                box_office=imdb['box_office'],
+                localized_title=imdb['localized_title'],
+                kind=imdb['kind'],
+                imdb_id=imdb["imdb_id"],
+                cast=imdb["cast"],
+                runtime=imdb["runtime"],
+                countries=imdb["countries"],
+                certificates=imdb["certificates"],
+                languages=imdb["languages"],
+                director=imdb["director"],
+                writer=imdb["writer"],
+                producer=imdb["producer"],
+                composer=imdb["composer"],
+                cinematographer=imdb["cinematographer"],
+                music_team=imdb["music_team"],
+                distributors=imdb["distributors"],
+                release_date=imdb['release_date'],
+                year=imdb['year'],
+                genres=imdb['genres'],
+                poster=imdb['poster'],
+                plot=imdb['plot'],
+                rating=imdb['rating'],
+                url=imdb['url'],
+                **locals()
+            )
+            temp.IMDB_CAP[message.from_user.id] = cap
+            if not settings["button"]:
+                cap+="<b>\n\n<u>🍿 Your Movie Files 👇</u></b>\n"
+                for file in files:
+                    cap += f"<b>\n📁 <a href='https://telegram.me/{temp.U_NAME}?start=files_{file['file_id']}'>[{get_size(file['file_size'])}] {' '.join(filter(lambda x: not x.startswith('[') and not x.startswith('@') and not x.startswith('www.'), file['file_name'].split()))}\n</a></b>"
+        else:
+            if settings["button"]:
+                cap = f"<b>Tʜᴇ Rᴇꜱᴜʟᴛꜱ Fᴏʀ ☞ {search}\n\nRᴇǫᴜᴇsᴛᴇᴅ Bʏ ☞ {user_mention}\n\nʀᴇsᴜʟᴛ sʜᴏᴡ ɪɴ ☞ {remaining_seconds} sᴇᴄᴏɴᴅs\n\nᴘᴏᴡᴇʀᴇᴅ ʙʏ ☞ : {message.chat.title} \n\n⚠️ ᴀꜰᴛᴇʀ 5 ᴍɪɴᴜᴛᴇꜱ ᴛʜɪꜱ ᴍᴇꜱꜱᴀɢᴇ ᴡɪʟʟ ʙᴇ ᴀᴜᴛᴏᴍᴀᴛɪᴄᴀʟʟʏ ᴅᴇʟᴇᴛᴇᴅ 🗑️\n\n</b>"
+            else:
+                cap = f"<b>Tʜᴇ Rᴇꜱᴜʟᴛꜱ Fᴏʀ ☞ {search}\n\nRᴇǫᴜᴇsᴛᴇᴅ Bʏ ☞ {user_mention}\n\nʀᴇsᴜʟᴛ sʜᴏᴡ ɪɴ ☞ {remaining_seconds} sᴇᴄᴏɴᴅs\n\nᴘᴏᴡᴇʀᴇᴅ ʙʏ ☞ : {message.chat.title} \n\n⚠️ ᴀꜰᴛᴇʀ 5 ᴍɪɴᴜᴛᴇꜱ ᴛʜɪꜱ ᴍᴇꜱꜱᴀɢᴇ ᴡɪʟʟ ʙᴇ ᴀᴜᴛᴏᴍᴀᴛɪᴄᴀʟʟʏ ᴅᴇʟᴇᴛᴇᴅ 🗑️\n\n</b>"
+                cap+="<b><u>🍿 Your Movie Files 👇</u></b>\n\n"
+                for file in files:
+                    cap += f"<b>📁 <a href='https://telegram.me/{temp.U_NAME}?start=files_{file['file_id']}'>[{get_size(file['file_size'])}] {' '.join(filter(lambda x: not x.startswith('[') and not x.startswith('@') and not x.startswith('www.'), file['file_name'].split()))}\n\n</a></b>"
+
+        if imdb and imdb.get('poster'):
             try:
-                if settings['auto_delete']:
+                hehe = await message.reply_photo(photo=imdb.get('poster'), caption=cap, reply_markup=InlineKeyboardMarkup(btn))
+                await reply_msg.delete()
+                try:
+                    if settings['auto_delete']:
+                        await asyncio.sleep(300)
+                        await hehe.delete()
+                        await message.delete()
+                except KeyError:
+                    await save_group_settings(message.chat.id, 'auto_delete', True)
                     await asyncio.sleep(300)
                     await hehe.delete()
                     await message.delete()
-            except KeyError:
-                await save_group_settings(message.chat.id, 'auto_delete', True)
-                await asyncio.sleep(300)
-                await hehe.delete()
-                await message.delete()
-        except (MediaEmpty, PhotoInvalidDimensions, WebpageMediaEmpty):
-            pic = imdb.get('poster')
-            poster = pic.replace('.jpg', "._V1_UX360.jpg") 
-            hmm = await message.reply_photo(photo=poster, caption=cap, reply_markup=InlineKeyboardMarkup(btn))
-            await reply_msg.delete()
-            try:
-               if settings['auto_delete']:
+            except (MediaEmpty, PhotoInvalidDimensions, WebpageMediaEmpty):
+                pic = imdb.get('poster')
+                poster = pic.replace('.jpg', "._V1_UX360.jpg") 
+                hmm = await message.reply_photo(photo=poster, caption=cap, reply_markup=InlineKeyboardMarkup(btn))
+                await reply_msg.delete()
+                try:
+                   if settings['auto_delete']:
+                        await asyncio.sleep(300)
+                        await hmm.delete()
+                        await message.delete()
+                except KeyError:
+                    await save_group_settings(message.chat.id, 'auto_delete', True)
                     await asyncio.sleep(300)
                     await hmm.delete()
                     await message.delete()
-            except KeyError:
-                await save_group_settings(message.chat.id, 'auto_delete', True)
-                await asyncio.sleep(300)
-                await hmm.delete()
-                await message.delete()
-        except Exception as e:
-            logger.exception(e) 
-            fek = await reply_msg.edit_text(text=cap, reply_markup=InlineKeyboardMarkup(btn))
+            except Exception as e:
+                logger.exception(e) 
+                fek = await reply_msg.edit_text(text=cap, reply_markup=InlineKeyboardMarkup(btn))
+                try:
+                    if settings['auto_delete']:
+                        await asyncio.sleep(300)
+                        await fek.delete()
+                        await message.delete()
+                except KeyError:
+                    await save_group_settings(message.chat.id, 'auto_delete', True)
+                    await asyncio.sleep(300)
+                    await fek.delete()
+                    await message.delete()
+        else:
+            fuk = await reply_msg.edit_text(text=cap, reply_markup=InlineKeyboardMarkup(btn), disable_web_page_preview=True)
+            
             try:
                 if settings['auto_delete']:
                     await asyncio.sleep(300)
-                    await fek.delete()
+                    await fuk.delete()
                     await message.delete()
             except KeyError:
                 await save_group_settings(message.chat.id, 'auto_delete', True)
                 await asyncio.sleep(300)
-                await fek.delete()
-                await message.delete()
-    else:
-        fuk = await reply_msg.edit_text(text=cap, reply_markup=InlineKeyboardMarkup(btn), disable_web_page_preview=True)
-        
-        try:
-            if settings['auto_delete']:
-                await asyncio.sleep(300)
                 await fuk.delete()
                 await message.delete()
-        except KeyError:
-            await save_group_settings(message.chat.id, 'auto_delete', True)
-            await asyncio.sleep(300)
-            await fuk.delete()
-            await message.delete()
+    except Exception as e:
+        logger.exception(e)
+        try:
+            await reply_msg.edit_text(f"<b>❌ An error occurred during search:</b>\n<code>{str(e)}</code>")
+        except Exception as err:
+            logger.error(f"Failed to send error message: {err}")
+            try:
+                await client.send_message(msg.chat.id, f"<b>❌ Critical error during search:</b>\n<code>{str(e)}</code>")
+            except:
+                pass
 
 async def advantage_spell_chok(client, name, msg, reply_msg, vj_search):
     mv_id = msg.id
     mv_rqst = name
     reqstr1 = msg.from_user.id if msg.from_user else 0
-    reqstr = await client.get_users(reqstr1)
+    if reqstr1:
+        reqstr = await client.get_users(reqstr1)
+        reqstr_id = reqstr.id
+        reqstr_mention = reqstr.mention
+    else:
+        reqstr_id = 0
+        reqstr_mention = "Anonymous"
     settings = await get_settings(msg.chat.id)
     query = re.sub(
         r"\b(pl(i|e)*?(s|z+|ease|se|ese|(e+)s(e)?)|((send|snd|giv(e)?|gib)(\sme)?)|movie(s)?|new|latest|br((o|u)h?)*|^h(e|a)?(l)*(o)*|mal(ayalam)?|t(h)?amil|file|that|find|und(o)*|kit(t(i|y)?)?o(w)?|thar(u)?(o)*w?|kittum(o)*|aya(k)*(um(o)*)?|full\smovie|any(one)|with\ssubtitle(s)?)",
         "", msg.text, flags=re.IGNORECASE)  # plis contribute some common words
     query = query.strip() + " movie"
+    if AI_SPELL_CHECK == True and vj_search == True:
+        await reply_msg.edit_text("<b><i>I Am Trying To Find Your Movie With Your Wrong Spelling Using AI... 🤖</i></b>")
+        corrected_name = await correct_spelling_with_gemini(mv_rqst)
+        if corrected_name:
+            files, offset, total_results = await get_search_results(msg.chat.id, corrected_name, offset=0, filter=True)
+            if files:
+                await reply_msg.edit_text(f"<b><i>AI Corrected Spelling: {corrected_name} 🎯</i></b>")
+                await asyncio.sleep(1)
+                return await auto_filter(client, corrected_name, msg, reply_msg, False, spoll=(corrected_name, files, offset, total_results))
+
     try:
         movies = await get_poster(mv_rqst, bulk=True)
     except Exception as e:
@@ -2775,19 +2906,39 @@ async def advantage_spell_chok(client, name, msg, reply_msg, vj_search):
             InlineKeyboardButton("Gᴏᴏɢʟᴇ", url=f"https://www.google.com/search?q={reqst_gle}")
         ]]
         if NO_RESULTS_MSG:
-            await client.send_message(chat_id=LOG_CHANNEL, text=(script.NORSLTS.format(reqstr.id, reqstr.mention, mv_rqst)))
+            notify_btn = InlineKeyboardMarkup([
+                [InlineKeyboardButton(
+                    "📨 Notify User",
+                    callback_data=f"notify_user#{reqstr_id}#{mv_rqst.replace(' ', '_')}"
+                )]
+            ])
+            await client.send_message(
+                chat_id=LOG_CHANNEL,
+                text=script.NORSLTS.format(reqstr_id, reqstr_mention, mv_rqst),
+                reply_markup=notify_btn
+            )
         k = await reply_msg.edit_text(text=script.I_CUDNT.format(mv_rqst), reply_markup=InlineKeyboardMarkup(button))
         await asyncio.sleep(30)
         await k.delete()
         return
-    movielist = []
+    movielist =  []
     if not movies:
         reqst_gle = mv_rqst.replace(" ", "+")
         button = [[
             InlineKeyboardButton("Gᴏᴏɢʟᴇ", url=f"https://www.google.com/search?q={reqst_gle}")
         ]]
         if NO_RESULTS_MSG:
-            await client.send_message(chat_id=LOG_CHANNEL, text=(script.NORSLTS.format(reqstr.id, reqstr.mention, mv_rqst)))
+            notify_btn = InlineKeyboardMarkup([
+                [InlineKeyboardButton(
+                    "📨 Notify User",
+                    callback_data=f"notify_user#{reqstr_id}#{mv_rqst.replace(' ', '_')}"
+                )]
+            ])
+            await client.send_message(
+                chat_id=LOG_CHANNEL,
+                text=script.NORSLTS.format(reqstr_id, reqstr_mention, mv_rqst),
+                reply_markup=notify_btn
+            )
         k = await reply_msg.edit_text(text=script.I_CUDNT.format(mv_rqst), reply_markup=InlineKeyboardMarkup(button))
         await asyncio.sleep(30)
         await k.delete()
@@ -2798,7 +2949,7 @@ async def advantage_spell_chok(client, name, msg, reply_msg, vj_search):
     if AI_SPELL_CHECK == True and vj_search == True:
         vj_search_new = False
         vj_ai_msg = await reply_msg.edit_text("<b><i>I Am Trying To Find Your Movie With Your Wrong Spelling.</i></b>")
-        movienamelist = []
+        movienamelist =  []
         movienamelist += [movie.get('title') for movie in movies]
         for techvj in movienamelist:
             try:
@@ -2813,11 +2964,22 @@ async def advantage_spell_chok(client, name, msg, reply_msg, vj_search):
             InlineKeyboardButton("Gᴏᴏɢʟᴇ", url=f"https://www.google.com/search?q={reqst_gle}")
         ]]
         if NO_RESULTS_MSG:
-            await client.send_message(chat_id=LOG_CHANNEL, text=(script.NORSLTS.format(reqstr.id, reqstr.mention, mv_rqst)))
+            notify_btn = InlineKeyboardMarkup([
+                [InlineKeyboardButton(
+                    "📨 Notify User",
+                    callback_data=f"notify_user#{reqstr_id}#{mv_rqst.replace(' ', '_')}"
+                )]
+            ])
+            await client.send_message(
+                chat_id=LOG_CHANNEL,
+                text=script.NORSLTS.format(reqstr_id, reqstr_mention, mv_rqst),
+                reply_markup=notify_btn
+            )
         k = await reply_msg.edit_text(text=script.I_CUDNT.format(mv_rqst), reply_markup=InlineKeyboardMarkup(button))
         await asyncio.sleep(30)
         await k.delete()
         return
+
     else:
         btn = [
             [
@@ -2862,7 +3024,7 @@ async def manual_filters(client, message, text=False):
             if btn is not None:
                 try:
                     if fileid == "None":
-                        if btn == "[]":
+                        if btn == "":
                             joelkb = await client.send_message(
                                 group_id, 
                                 reply_text, 
@@ -2874,7 +3036,7 @@ async def manual_filters(client, message, text=False):
                                 if settings['auto_ffilter']:
                                     ai_search = True
                                     reply_msg = await message.reply_text(f"<b><i>Searching For {message.text} 🔍</i></b>")
-                                    await auto_filter(client, message.text, message, reply_msg, ai_search)
+                                    await auto_filter(client, message.text, message, reply_msg, ai_search, exclude_file_id=fileid)
                                     try:
                                         if settings['auto_delete']:
                                             await joelkb.delete()
@@ -2903,7 +3065,7 @@ async def manual_filters(client, message, text=False):
                                 if settings['auto_ffilter']:
                                     ai_search = True
                                     reply_msg = await message.reply_text(f"<b><i>Searching For {message.text} 🔍</i></b>")
-                                    await auto_filter(client, message.text, message, reply_msg, ai_search)
+                                    await auto_filter(client, message.text, message, reply_msg, ai_search, exclude_file_id=fileid)
 
                         else:
                             button = eval(btn)
@@ -2919,7 +3081,7 @@ async def manual_filters(client, message, text=False):
                                 if settings['auto_ffilter']:
                                     ai_search = True
                                     reply_msg = await message.reply_text(f"<b><i>Searching For {message.text} 🔍</i></b>")
-                                    await auto_filter(client, message.text, message, reply_msg, ai_search)
+                                    await auto_filter(client, message.text, message, reply_msg, ai_search, exclude_file_id=fileid)
                                     try:
                                         if settings['auto_delete']:
                                             await joelkb.delete()
@@ -2948,20 +3110,27 @@ async def manual_filters(client, message, text=False):
                                 if settings['auto_ffilter']:
                                     ai_search = True
                                     reply_msg = await message.reply_text(f"<b><i>Searching For {message.text} 🔍</i></b>")
-                                    await auto_filter(client, message.text, message, reply_msg, ai_search)
-                    elif btn == "[]":
-                        joelkb = await client.send_cached_media(
-                            group_id,
-                            fileid,
+                                    await auto_filter(client, message.text, message, reply_msg, ai_search, exclude_file_id=fileid)
+                    elif btn == "":
+                        if STREAM_MODE:
+                            button = [[InlineKeyboardButton('sᴛʀᴇᴀᴍ ᴀɴᴅ ᴅᴏᴡɴʟᴏᴀᴅ', callback_data=f'generate_stream_link:{fileid}')]]
+                            reply_markup = InlineKeyboardMarkup(button)
+                        else:
+                            reply_markup = None
+                        joelkb = await send_file(
+                            bot=client,
+                            chat_id=group_id,
+                            file_id=fileid,
                             caption=reply_text or "",
                             protect_content=True if settings["file_secure"] else False,
-                            reply_to_message_id=reply_id
+                            reply_to_message_id=reply_id,
+                            reply_markup=reply_markup
                         )
                         try:
                             if settings['auto_ffilter']:
                                 ai_search = True
                                 reply_msg = await message.reply_text(f"<b><i>Searching For {message.text} 🔍</i></b>")
-                                await auto_filter(client, message.text, message, reply_msg, ai_search)
+                                await auto_filter(client, message.text, message, reply_msg, ai_search, exclude_file_id=fileid)
                                 try:
                                     if settings['auto_delete']:
                                         await joelkb.delete()
@@ -2990,7 +3159,7 @@ async def manual_filters(client, message, text=False):
                             if settings['auto_ffilter']:
                                 ai_search = True
                                 reply_msg = await message.reply_text(f"<b><i>Searching For {message.text} 🔍</i></b>")
-                                await auto_filter(client, message.text, message, reply_msg, ai_search)
+                                await auto_filter(client, message.text, message, reply_msg, ai_search, exclude_file_id=fileid)
                     else:
                         button = eval(btn)
                         joelkb = await message.reply_cached_media(
@@ -3003,7 +3172,7 @@ async def manual_filters(client, message, text=False):
                             if settings['auto_ffilter']:
                                 ai_search = True
                                 reply_msg = await message.reply_text(f"<b><i>Searching For {message.text} 🔍</i></b>")
-                                await auto_filter(client, message.text, message, reply_msg, ai_search)
+                                await auto_filter(client, message.text, message, reply_msg, ai_search, exclude_file_id=fileid)
                                 try:
                                     if settings['auto_delete']:
                                         await joelkb.delete()
@@ -3032,7 +3201,7 @@ async def manual_filters(client, message, text=False):
                             if settings['auto_ffilter']:
                                 ai_search = True
                                 reply_msg = await message.reply_text(f"<b><i>Searching For {message.text} 🔍</i></b>")
-                                await auto_filter(client, message.text, message, reply_msg, ai_search)
+                                await auto_filter(client, message.text, message, reply_msg, ai_search, exclude_file_id=fileid)
 
                 except Exception as e:
                     logger.exception(e)
@@ -3057,7 +3226,7 @@ async def global_filters(client, message, text=False):
             if btn is not None:
                 try:
                     if fileid == "None":
-                        if btn == "[]":
+                        if btn == "":
                             joelkb = await client.send_message(
                                 group_id, 
                                 reply_text, 
@@ -3071,7 +3240,7 @@ async def global_filters(client, message, text=False):
                                     if settings['auto_ffilter']:
                                         ai_search = True
                                         reply_msg = await message.reply_text(f"<b><i>Searching For {message.text} 🔍</i></b>")
-                                        await auto_filter(client, message.text, message, reply_msg, ai_search)
+                                        await auto_filter(client, message.text, message, reply_msg, ai_search, exclude_file_id=fileid)
                                         try:
                                             if settings['auto_delete']:
                                                 await joelkb.delete()
@@ -3100,7 +3269,7 @@ async def global_filters(client, message, text=False):
                                     if settings['auto_ffilter']:
                                         ai_search = True
                                         reply_msg = await message.reply_text(f"<b><i>Searching For {message.text} 🔍</i></b>")
-                                        await auto_filter(client, message.text, message, reply_msg, ai_search) 
+                                        await auto_filter(client, message.text, message, reply_msg, ai_search, exclude_file_id=fileid) 
                             else:
                                 try:
                                     if settings['auto_delete']:
@@ -3128,7 +3297,7 @@ async def global_filters(client, message, text=False):
                                     if settings['auto_ffilter']:
                                         ai_search = True
                                         reply_msg = await message.reply_text(f"<b><i>Searching For {message.text} 🔍</i></b>")
-                                        await auto_filter(client, message.text, message, reply_msg, ai_search)
+                                        await auto_filter(client, message.text, message, reply_msg, ai_search, exclude_file_id=fileid)
                                         try:
                                             if settings['auto_delete']:
                                                 await joelkb.delete()
@@ -3157,7 +3326,7 @@ async def global_filters(client, message, text=False):
                                     if settings['auto_ffilter']:
                                         ai_search = True
                                         reply_msg = await message.reply_text(f"<b><i>Searching For {message.text} 🔍</i></b>")
-                                        await auto_filter(client, message.text, message, reply_msg, ai_search)
+                                        await auto_filter(client, message.text, message, reply_msg, ai_search, exclude_file_id=fileid)
                             else:
                                 try:
                                     if settings['auto_delete']:
@@ -3169,12 +3338,19 @@ async def global_filters(client, message, text=False):
                                     if settings['auto_delete']:
                                         await joelkb.delete()
 
-                    elif btn == "[]":
-                        joelkb = await client.send_cached_media(
-                            group_id,
-                            fileid,
+                    elif btn == "":
+                        if STREAM_MODE:
+                            button = [[InlineKeyboardButton('sᴛʀᴇᴀᴍ ᴀɴᴅ ᴅᴏᴡɴʟᴏᴀᴅ', callback_data=f'generate_stream_link:{fileid}')]]
+                            reply_markup = InlineKeyboardMarkup(button)
+                        else:
+                            reply_markup = None
+                        joelkb = await send_file(
+                            bot=client,
+                            chat_id=group_id,
+                            file_id=fileid,
                             caption=reply_text or "",
-                            reply_to_message_id=reply_id
+                            reply_to_message_id=reply_id,
+                            reply_markup=reply_markup
                         )
                         manual = await manual_filters(client, message)
                         if manual == False:
@@ -3183,7 +3359,7 @@ async def global_filters(client, message, text=False):
                                 if settings['auto_ffilter']:
                                     ai_search = True
                                     reply_msg = await message.reply_text(f"<b><i>Searching For {message.text} 🔍</i></b>")
-                                    await auto_filter(client, message.text, message, reply_msg, ai_search)
+                                    await auto_filter(client, message.text, message, reply_msg, ai_search, exclude_file_id=fileid)
                                     try:
                                         if settings['auto_delete']:
                                             await joelkb.delete()
@@ -3212,7 +3388,7 @@ async def global_filters(client, message, text=False):
                                 if settings['auto_ffilter']:
                                     ai_search = True
                                     reply_msg = await message.reply_text(f"<b><i>Searching For {message.text} 🔍</i></b>")
-                                    await auto_filter(client, message.text, message, reply_msg, ai_search) 
+                                    await auto_filter(client, message.text, message, reply_msg, ai_search, exclude_file_id=fileid) 
                         else:
                             try:
                                 if settings['auto_delete']:
@@ -3239,7 +3415,7 @@ async def global_filters(client, message, text=False):
                                 if settings['auto_ffilter']:
                                     ai_search = True
                                     reply_msg = await message.reply_text(f"<b><i>Searching For {message.text} 🔍</i></b>")
-                                    await auto_filter(client, message.text, message, reply_msg, ai_search)
+                                    await auto_filter(client, message.text, message, reply_msg, ai_search, exclude_file_id=fileid)
                                     try:
                                         if settings['auto_delete']:
                                             await joelkb.delete()
@@ -3268,7 +3444,7 @@ async def global_filters(client, message, text=False):
                                 if settings['auto_ffilter']:
                                     ai_search = True
                                     reply_msg = await message.reply_text(f"<b><i>Searching For {message.text} 🔍</i></b>")
-                                    await auto_filter(client, message.text, message, reply_msg, ai_search)
+                                    await auto_filter(client, message.text, message, reply_msg, ai_search, exclude_file_id=fileid)
                         else:
                             try:
                                 if settings['auto_delete']:
@@ -3286,4 +3462,3 @@ async def global_filters(client, message, text=False):
                 break
     else:
         return False
-
