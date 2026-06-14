@@ -1,8 +1,8 @@
-# Don't Remove Credit @VJ_Bots
-# Subscribe YouTube Channel For Amazing Bot @Tech_VJ
-# Ask Doubt on telegram @KingVJ01
+# Don't Remove Credit #blackcatoffical
+# Subscribe YouTube Channel For Amazing Bot #blackcatoffical
+# Ask Doubt on telegram edison
 
-# Clone Code Credit : YT - @Tech_VJ / TG - @VJ_Bots / GitHub - @VJBots
+# Clone Code Credit : YT - #blackcatoffical / TG - #blackcatoffical / GitHub - @VJBots
 
 import os, logging, string, asyncio, time, re, ast, random, math, pytz, pyrogram
 from datetime import datetime, timedelta, date, time
@@ -12,7 +12,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQ
 from pyrogram import Client, filters, enums
 from pyrogram.errors import FloodWait, UserIsBlocked, MessageNotModified, PeerIdInvalid
 from pyrogram.errors.exceptions.bad_request_400 import MediaEmpty, PhotoInvalidDimensions, WebpageMediaEmpty
-from utils import get_size, is_subscribed, pub_is_subscribed, get_poster, search_gagala, temp, get_settings, save_group_settings, get_shortlink, get_tutorial, send_all, get_cap
+from utils import get_size, is_subscribed, pub_is_subscribed, get_poster, search_gagala, temp, get_settings, save_group_settings, get_shortlink, get_tutorial, send_all, get_cap, correct_spelling_with_gemini
 from database.users_chats_db import db
 from database.ia_filterdb import get_file_details, get_search_results, get_bad_files
 
@@ -881,11 +881,16 @@ async def auto_filter(client, name, msg, reply_msg, ai_search, spoll=False):
         else:
             return
     else:
-        message = msg.message.reply_to_message  # msg will be callback query
+        if isinstance(msg, CallbackQuery):
+            message = msg.message.reply_to_message  # msg will be callback query
+            await msg.message.delete()
+        else:
+            message = msg
         search, files, offset, total_results = spoll
-        await msg.message.delete()
+        settings = await get_settings(message.chat.id)
     key = f"{message.chat.id}-{message.id}"
     FRESH[key] = search
+    BUTTONS[key] = search
     temp.GETALL[key] = files
     temp.SHORT[message.from_user.id] = message.chat.id
     btn = [
@@ -988,11 +993,27 @@ async def advantage_spell_chok(client, name, msg, reply_msg, vj_search):
     mv_id = msg.id
     mv_rqst = name
     reqstr1 = msg.from_user.id if msg.from_user else 0
-    reqstr = await client.get_users(reqstr1)
+    if reqstr1:
+        reqstr = await client.get_users(reqstr1)
+        reqstr_id = reqstr.id
+        reqstr_mention = reqstr.mention
+    else:
+        reqstr_id = 0
+        reqstr_mention = "Anonymous"
     query = re.sub(
         r"\b(pl(i|e)*?(s|z+|ease|se|ese|(e+)s(e)?)|((send|snd|giv(e)?|gib)(\sme)?)|movie(s)?|new|latest|br((o|u)h?)*|^h(e|a)?(l)*(o)*|mal(ayalam)?|t(h)?amil|file|that|find|und(o)*|kit(t(i|y)?)?o(w)?|thar(u)?(o)*w?|kittum(o)*|aya(k)*(um(o)*)?|full\smovie|any(one)|with\ssubtitle(s)?)",
         "", msg.text, flags=re.IGNORECASE)  # plis contribute some common words
     query = query.strip() + " movie"
+    if vj_search == True:
+        await reply_msg.edit_text("<b><i>I Am Trying To Find Your Movie With Your Wrong Spelling Using AI... 🤖</i></b>")
+        corrected_name = await correct_spelling_with_gemini(mv_rqst)
+        if corrected_name:
+            files, offset, total_results = await get_search_results(msg.chat.id, corrected_name, offset=0, filter=True)
+            if files:
+                await reply_msg.edit_text(f"<b><i>AI Corrected Spelling: {corrected_name} 🎯</i></b>")
+                await asyncio.sleep(1)
+                return await auto_filter(client, corrected_name, msg, reply_msg, False, spoll=(corrected_name, files, offset, total_results))
+
     try:
         movies = await get_poster(mv_rqst, bulk=True)
     except Exception as e:
@@ -1020,7 +1041,7 @@ async def advantage_spell_chok(client, name, msg, reply_msg, vj_search):
     SPELL_CHECK[mv_id] = movielist
     if vj_search == True:
         vj_search_new = False
-        vj_ai_msg = await reply_msg.edit_text("<b><i>Advance Ai Of Tech VJ Try To Find Your Movie With Your Wrong Spelling.</i></b>")
+        vj_ai_msg = await reply_msg.edit_text("<b><i>Advance Ai Of #blackcatoffical Try To Find Your Movie With Your Wrong Spelling.</i></b>")
         movienamelist = []
         movienamelist += [movie.get('title') for movie in movies]
         for techvj in movienamelist:
@@ -1056,4 +1077,3 @@ async def advantage_spell_chok(client, name, msg, reply_msg, vj_search):
         )
         await asyncio.sleep(600)
         await spell_check_del.delete()
-
