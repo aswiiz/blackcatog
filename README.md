@@ -1,11 +1,12 @@
 <p align="center">
-  <img src="https://i.ibb.co/dJ0gpJf1/photo-2025-06-16-12-07-05-7516517596376596504.jpg" alt="VJ-Filter-Bot Logo">
+  <h1>
+   CREATED BY TEAM GREENMOVIES
+  </h1>
 </p>
 <h1 align="center">
-  VJ FILTER BOT
-</h1>
+  BLACK CAT OFFICIAL
 
-![Typing SVG](https://readme-typing-svg.herokuapp.com/?lines=Welcome+To+VJ+Filter+Bot!)
+![Typing SVG](https://readme-typing-svg.herokuapp.com/?lines=Welcome+To+BLACK+CAT+OFFICIAL+Filter+Bot!)
 </p>
 
 ## Main Feature 
@@ -35,7 +36,7 @@
 
 - Note : You Can Turn On Or Off Every Feature, Just Use Which Feature You Want By Turning It On.
 
-Join My <a href='https://telegram.me/vj_bots'>Update Channel</a> For More Update Regarding Repo.</b>
+Join My <a href='https://telegram.me/greenmoviesbot>Update Channel</a> For More Update Regarding Repo.</b>
 
 ### How To Deploy : [Video Tutorial](https://youtu.be/3SJR7vH2kRo)
 
@@ -133,7 +134,7 @@ Join My <a href='https://telegram.me/vj_bots'>Update Channel</a> For More Update
 <br>
 <br>
 
-[![Deploy to Koyeb](https://www.koyeb.com/static/images/deploy/button.svg)](https://app.koyeb.com/deploy?type=git&repository=github.com/VJBots/VJ-Filter-Bot&branch=Tech_VJ&name=VJ-Filter-Bot)
+[![Deploy to Koyeb](https://www.koyeb.com/static/images/deploy/button.svg)](https://app.koyeb.com/deploy?type=git&repository=github.com/VJBots/VJ-Filter-Bot&branch=#blackcatoffical&name=VJ-Filter-Bot)
 </details>
 
 <details><summary><b>Deploy To Render</b></summary>
@@ -160,7 +161,7 @@ Use these settings when adding a monitor:</b>
 <b>Click on the below button to deploy directly to render ↓</b>
 <br>
 <br>
-<a href="https://render.com/deploy?repo=https://github.com/VJBots/VJ-Filter-Bot/tree/Tech_VJ">
+<a href="https://render.com/deploy?repo=https://github.com/VJBots/VJ-Filter-Bot/tree/#blackcatoffical">
 <img src="https://render.com/images/deploy-to-render-button.svg" alt="Deploy to Render">
 </a>
 </details>
@@ -186,25 +187,24 @@ Edit info.py with variables as given below then run bot
 
 ## Thanks to 
  - <b>Thanks To [Pyrogram Library](https://github.com/pyrogram/pyrogram) & [Pyrofork Library](https://github.com/Mayuri-Chan/pyrofork)
- - Thanks To [Tech VJ](https://youtube.com/@Tech_VJ) To Modify And Add Amazing Feature In The Repo
+ - Thanks To [#blackcatoffical](https://youtube.com/#blackcatoffical) To Modify And Add Amazing Feature In The Repo
  - Thanks To [Eva Marie](https://t.me/TeamEvamaria) For Base Repo
  - Thanks To All Everyone In This Journey</b>
 
 ## Note 🏷️
-
-<b>• If You Want Paid Edits Or Any Paid Features In Any Kind Of Auto Filter Bot Repo You Can Contact Developer.</b>
  
-[![Contact Developer](https://img.shields.io/static/v1?label=Contact+Developer&message=On+Telegram&color=critical)](https://telegram.me/KingVJ01) 
+[![Contact Developer](https://img.shields.io/static/v1?label=Contact+Developer&message=On+Telegram&color=critical)](https://telegram.me/edisonwriter) 
 
 <b>Fork The Repo And Edit As Per Your Needs.</b>
 
 ## Disclaimer
 [![GNU Affero General Public License 2.0](https://www.gnu.org/graphics/agplv3-155x51.png)](https://www.gnu.org/licenses/agpl-3.0.en.html#header)    
-<b>Licensed under [GNU AGPL 2.0.](https://github.com/VJBots/VJ-Filter-Bot/blob/Tech_VJ/LICENSE)
+<b>Licensed under [GNU AGPL 2.0.](https://github.com/VJBots/VJ-Filter-Bot/blob/#blackcatoffical/LICENSE)
 Selling The Codes To Other People For Money Is *Strictly Prohibited*.</b>
 
 </pre>
 </p>
 </details>
+
 
 
